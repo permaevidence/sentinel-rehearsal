@@ -1,0 +1,32 @@
+name: Release (signed) — rehearsal
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+jobs:
+  authorize:
+    name: Authorize (credential-free)
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "authorize $GITHUB_REF_NAME"
+  sign:
+    name: Sign metadata
+    needs: authorize
+    runs-on: ubuntu-latest
+    environment: release-sign
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Sign (throwaway; no key exists)
+        run: |
+          echo "signing $GITHUB_REF_NAME attempt $GITHUB_RUN_ATTEMPT"
+          if grep -qx sign-fail ".rehearsal/$GITHUB_REF_NAME" 2>/dev/null; then exit 1; fi
+  publish:
+    name: Publish immutable release
+    needs: sign
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - run: |
+          if grep -qx pub-fail-once ".rehearsal/$GITHUB_REF_NAME" 2>/dev/null && [ "$GITHUB_RUN_ATTEMPT" = 1 ]; then exit 1; fi
+          echo "publish $GITHUB_REF_NAME"
